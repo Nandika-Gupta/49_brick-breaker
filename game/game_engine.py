@@ -2,6 +2,7 @@ import pygame
 from .paddle import Paddle
 from .ball import Ball
 from .brick import Brick
+from .sound import SoundFX
 
 # Game Engine
 
@@ -31,6 +32,7 @@ class GameEngine:
         self.font = pygame.font.SysFont("Arial", 28)
         self.big_font = pygame.font.SysFont("Arial", 56, bold=True)
         self.quit_requested = False
+        self.sfx = SoundFX()
         self.reset(DIFFICULTIES[pygame.K_2])
 
     def reset(self, difficulty):
@@ -90,21 +92,26 @@ class GameEngine:
         if self.ball.x - self.ball.radius <= 0:
             self.ball.x = self.ball.radius
             self.ball.vx = abs(self.ball.vx)
+            self.sfx.play("wall")
         elif self.ball.x + self.ball.radius >= self.width:
             self.ball.x = self.width - self.ball.radius
             self.ball.vx = -abs(self.ball.vx)
+            self.sfx.play("wall")
         if self.ball.y - self.ball.radius <= 0:
             self.ball.y = self.ball.radius
             self.ball.vy = abs(self.ball.vy)
+            self.sfx.play("wall")
 
         if self.ball.rect().colliderect(self.paddle.rect()):
             self._bounce_off(self.paddle.rect())
+            self.sfx.play("paddle")
 
         for brick in self.bricks:
             if brick.alive and self.ball.rect().colliderect(brick.rect()):
                 brick.alive = False
                 self.score += 1
                 self._bounce_off(brick.rect())
+                self.sfx.play("brick")
                 break
 
         if self.ball.y - self.ball.radius > self.height:
@@ -112,12 +119,14 @@ class GameEngine:
             if self.lives <= 0:
                 self.game_over = True
                 self.result = "lose"
+                self.sfx.play("lose")
             else:
                 self._reset_ball()
 
         if all(not b.alive for b in self.bricks):
             self.game_over = True
             self.result = "win"
+            self.sfx.play("win")
 
     def _bounce_off(self, rect):
         # The side that was hit is the axis with the smaller overlap:
