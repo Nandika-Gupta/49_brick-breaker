@@ -66,27 +66,26 @@ class GameEngine:
 
         self.ball.move()
 
-        if self.ball.x - self.ball.radius <= 0 or self.ball.x + self.ball.radius >= self.width:
-            self.ball.vx *= -1
+        # Set the direction explicitly (instead of flipping) and clamp the
+        # ball inside the screen so it can never get stuck in a wall.
+        if self.ball.x - self.ball.radius <= 0:
+            self.ball.x = self.ball.radius
+            self.ball.vx = abs(self.ball.vx)
+        elif self.ball.x + self.ball.radius >= self.width:
+            self.ball.x = self.width - self.ball.radius
+            self.ball.vx = -abs(self.ball.vx)
         if self.ball.y - self.ball.radius <= 0:
-            self.ball.vy *= -1
+            self.ball.y = self.ball.radius
+            self.ball.vy = abs(self.ball.vy)
 
         if self.ball.rect().colliderect(self.paddle.rect()):
-            # NOTE: always flips the ball's vertical velocity on a
-            # paddle collision, regardless of which side of the paddle
-            # was actually hit. See Task 1 in the README.
-            self.ball.vy *= -1
+            self._bounce_off(self.paddle.rect())
 
         for brick in self.bricks:
             if brick.alive and self.ball.rect().colliderect(brick.rect()):
                 brick.alive = False
                 self.score += 1
-                # NOTE: same unconditional vertical-velocity flip as
-                # the paddle collision above - a brick hit from the
-                # left or right should redirect the ball sideways
-                # (flip vx), but this always flips vy instead. See
-                # Task 1 in the README.
-                self.ball.vy *= -1
+                self._bounce_off(brick.rect())
                 break
 
         if self.ball.y - self.ball.radius > self.height:
@@ -100,6 +99,30 @@ class GameEngine:
         if all(not b.alive for b in self.bricks):
             self.game_over = True
             self.result = "win"
+
+    def _bounce_off(self, rect):
+        # The side that was hit is the axis with the smaller overlap:
+        # a thin horizontal overlap means the ball came in from the left
+        # or right, a thin vertical overlap means from the top or bottom.
+        ball = self.ball.rect()
+        overlap_x = min(ball.right, rect.right) - max(ball.left, rect.left)
+        overlap_y = min(ball.bottom, rect.bottom) - max(ball.top, rect.top)
+        if overlap_x < overlap_y:
+            # Side hit: send the ball back sideways and push it out.
+            if self.ball.x < rect.centerx:
+                self.ball.vx = -abs(self.ball.vx)
+                self.ball.x -= overlap_x
+            else:
+                self.ball.vx = abs(self.ball.vx)
+                self.ball.x += overlap_x
+        else:
+            # Top/bottom hit: send the ball back vertically and push it out.
+            if self.ball.y < rect.centery:
+                self.ball.vy = -abs(self.ball.vy)
+                self.ball.y -= overlap_y
+            else:
+                self.ball.vy = abs(self.ball.vy)
+                self.ball.y += overlap_y
 
     def _reset_ball(self):
         self.ball.x, self.ball.y = self.width // 2, self.height - 50
