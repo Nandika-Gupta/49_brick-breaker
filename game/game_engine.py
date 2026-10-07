@@ -15,26 +15,38 @@ BRICK_COLORS = [
     (80, 140, 200),
 ]
 
+# Difficulty presets: key -> (name, ball speed, paddle width)
+DIFFICULTIES = {
+    pygame.K_1: ("Easy", 3, 140),
+    pygame.K_2: ("Medium", 4, 100),
+    pygame.K_3: ("Hard", 6, 70),
+}
+
 class GameEngine:
     def __init__(self, width, height):
         self.width = width
         self.height = height
 
-        self.paddle = Paddle(width // 2 - 50, height - 30, 100, 14)
-
-        self.ball = Ball(width // 2, height - 50, radius=8)
-        self.ball.vx, self.ball.vy = 4, -4
-
         self.rows, self.cols = 5, 8
+        self.font = pygame.font.SysFont("Arial", 28)
+        self.big_font = pygame.font.SysFont("Arial", 56, bold=True)
+        self.quit_requested = False
+        self.reset(DIFFICULTIES[pygame.K_2])
+
+    def reset(self, difficulty):
+        self.difficulty, self.ball_speed, paddle_width = difficulty
+
+        self.paddle = Paddle(self.width // 2 - paddle_width // 2, self.height - 30, paddle_width, 14)
+
+        self.ball = Ball(self.width // 2, self.height - 50, radius=8)
+        self._reset_ball()
+
         self.bricks = self._build_bricks(self.rows, self.cols)
 
         self.lives = 3
         self.score = 0
-        self.font = pygame.font.SysFont("Arial", 28)
-        self.big_font = pygame.font.SysFont("Arial", 56, bold=True)
         self.game_over = False
         self.result = None  # "win" or "lose"
-        self.quit_requested = False
 
     def _build_bricks(self, rows, cols):
         bricks = []
@@ -55,6 +67,8 @@ class GameEngine:
             return
         if event.key in (pygame.K_ESCAPE, pygame.K_q):
             self.quit_requested = True
+        elif event.key in DIFFICULTIES:
+            self.reset(DIFFICULTIES[event.key])
 
     def handle_input(self):
         if self.game_over:
@@ -131,7 +145,7 @@ class GameEngine:
 
     def _reset_ball(self):
         self.ball.x, self.ball.y = self.width // 2, self.height - 50
-        self.ball.vx, self.ball.vy = 4, -4
+        self.ball.vx, self.ball.vy = self.ball_speed, -self.ball_speed
 
     def render(self, screen):
         screen.fill(BG)
@@ -154,7 +168,11 @@ class GameEngine:
             self._render_end_screen(screen)
 
     def _end_screen_lines(self):
-        return [("Press Esc or Q to quit", WHITE)]
+        return [
+            ("Play again - choose difficulty:", WHITE),
+            ("1  Easy     2  Medium     3  Hard", (240, 200, 90)),
+            ("Esc / Q  Quit", (170, 170, 170)),
+        ]
 
     def _render_end_screen(self, screen):
         overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
