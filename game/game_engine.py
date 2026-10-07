@@ -31,8 +31,10 @@ class GameEngine:
         self.lives = 3
         self.score = 0
         self.font = pygame.font.SysFont("Arial", 28)
+        self.big_font = pygame.font.SysFont("Arial", 56, bold=True)
         self.game_over = False
         self.result = None  # "win" or "lose"
+        self.quit_requested = False
 
     def _build_bricks(self, rows, cols):
         bricks = []
@@ -47,9 +49,12 @@ class GameEngine:
         return bricks
 
     def handle_event(self, event):
-        # This game only needs continuously-held-key input for the
-        # paddle, handled in handle_input each frame.
-        pass
+        # Paddle movement is continuous and handled in handle_input; the
+        # only discrete input is on the end screen.
+        if not self.game_over or event.type != pygame.KEYDOWN:
+            return
+        if event.key in (pygame.K_ESCAPE, pygame.K_q):
+            self.quit_requested = True
 
     def handle_input(self):
         if self.game_over:
@@ -145,10 +150,27 @@ class GameEngine:
         lives_text = self.font.render(f"Lives: {self.lives}", True, WHITE)
         screen.blit(lives_text, (self.width - 130, 10))
 
-        if self.game_over and not getattr(self, "_game_over_logged", False):
-            # NOTE: no proper end screen yet - see Task 2 in the README.
-            if self.result == "win":
-                print("You win! Final score:", self.score)
-            else:
-                print("Game over! Final score:", self.score)
-            self._game_over_logged = True
+        if self.game_over:
+            self._render_end_screen(screen)
+
+    def _end_screen_lines(self):
+        return [("Press Esc or Q to quit", WHITE)]
+
+    def _render_end_screen(self, screen):
+        overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 190))
+        screen.blit(overlay, (0, 0))
+
+        won = self.result == "win"
+        title = self.big_font.render("YOU WIN!" if won else "GAME OVER", True,
+                                     (90, 220, 110) if won else (230, 70, 70))
+        screen.blit(title, title.get_rect(center=(self.width // 2, self.height // 2 - 90)))
+
+        score = self.font.render(f"Final score: {self.score}", True, WHITE)
+        screen.blit(score, score.get_rect(center=(self.width // 2, self.height // 2 - 30)))
+
+        y = self.height // 2 + 30
+        for text, color in self._end_screen_lines():
+            line = self.font.render(text, True, color)
+            screen.blit(line, line.get_rect(center=(self.width // 2, y)))
+            y += 40
